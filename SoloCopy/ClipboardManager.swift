@@ -11,6 +11,7 @@ class ClipboardManager: ObservableObject {
     
     @AppStorage("maxStoredItems") private var maxStoredItems: Int = 50
     @AppStorage("autoDeleteOldItems") private var autoDeleteOldItems: Bool = true
+    private let maxStarredItems = 5
     
     init() {
         self.lastChangeCount = pasteboard.changeCount
@@ -33,36 +34,67 @@ class ClipboardManager: ObservableObject {
         }
     }
     
+    private func sortItems() {
+        items.sort { (item1, item2) -> Bool in
+            if item1.isStarred && !item2.isStarred {
+                return true
+            } else if !item1.isStarred && item2.isStarred {
+                return false
+            } else {
+                return item1.createdAt > item2.createdAt
+            }
+        }
+    }
+    
     func addItem(text: String) {
         let newItem = ClipboardItem(text: text)
         DispatchQueue.main.async {
             if let existingIndex = self.items.firstIndex(where: { $0.text == text }) {
+                // Eğer öğe yıldızlıysa, yıldızını koru
+                let isStarred = self.items[existingIndex].isStarred
                 self.items.remove(at: existingIndex)
+                var updatedItem = newItem
+                updatedItem.isStarred = isStarred
+                self.items.insert(updatedItem, at: 0)
+            } else {
+                self.items.insert(newItem, at: 0)
             }
-            
-            self.items.insert(newItem, at: 0)
             
             if self.autoDeleteOldItems && self.items.count > self.maxStoredItems {
-                let itemsToKeep = self.items.prefix(self.maxStoredItems)
-                self.items = Array(itemsToKeep)
+                // Yıldızlı öğeleri koru, yıldızsız en eski öğeleri sil
+                let starredItems = self.items.filter { $0.isStarred }
+                let unstarredItems = self.items.filter { !$0.isStarred }
+                let keepUnstarredCount = self.maxStoredItems - starredItems.count
+                let keptUnstarredItems = Array(unstarredItems.prefix(keepUnstarredCount))
+                self.items = starredItems + keptUnstarredItems
             }
             
+            self.sortItems()
             self.saveItems()
         }
     }
     
     func removeItem(at index: Int) {
         items.remove(at: index)
+        sortItems()
         saveItems()
     }
     
     func toggleStar(for item: ClipboardItem) {
         if let index = items.firstIndex(where: { $0.id == item.id }) {
-            items[index].isStarred.toggle()
-            if items[index].isStarred {
-                let starredItem = items.remove(at: index)
-                items.insert(starredItem, at: 0)
+            let currentlyStarred = items[index].isStarred
+            
+            if !currentlyStarred {
+                // Yıldızlamak istiyoruz, limit kontrolü yapalım
+                let starredCount = items.filter { $0.isStarred }.count
+                if starredCount >= maxStarredItems {
+                    // Limit aşıldı, işlemi iptal et
+                    return
+                }
             }
+            
+            items[index].isStarred.toggle()
+            sortItems()
             saveItems()
         }
     }
@@ -84,11 +116,20 @@ class ClipboardManager: ObservableObject {
         if let savedItems = UserDefaults.standard.data(forKey: "savedItems"),
            let decodedItems = try? JSONDecoder().decode([ClipboardItem].self, from: savedItems) {
             items = decodedItems
+            sortItems()
         }
     }
     
     func copyToClipboard(_ text: String) {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+    }
+    
+    func getStarredItemsCount() -> Int {
+        return items.filter { $0.isStarred }.count
+    }
+    
+    func canAddStarredItem() -> Bool {
+        return getStarredItemsCount() < maxStarredItems
     }
 } 

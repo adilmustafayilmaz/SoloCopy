@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var clipboardManager = ClipboardManager()
+    @State private var showStarLimitAlert = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -26,8 +27,10 @@ struct ContentView: View {
             ScrollViewReader { proxy in
                 List {
                     ForEach(clipboardManager.filteredItems) { item in
-                        ClipboardItemView(item: item, clipboardManager: clipboardManager)
-                            .id(item.id)
+                        ClipboardItemView(item: item, clipboardManager: clipboardManager, onStarLimitReached: {
+                            showStarLimitAlert = true
+                        })
+                        .id(item.id)
                     }
                 }
                 .onChange(of: clipboardManager.items) { newItems in
@@ -40,12 +43,18 @@ struct ContentView: View {
             }
         }
         .frame(width: 300, height: 400)
+        .alert("Favori Limiti", isPresented: $showStarLimitAlert) {
+            Button("Tamam", role: .cancel) {}
+        } message: {
+            Text("En fazla 5 öğeyi favorilere ekleyebilirsiniz.")
+        }
     }
 }
 
 struct ClipboardItemView: View {
     let item: ClipboardItem
     @ObservedObject var clipboardManager: ClipboardManager
+    var onStarLimitReached: () -> Void
     
     var body: some View {
         HStack {
@@ -61,7 +70,11 @@ struct ClipboardItemView: View {
             
             HStack {
                 Button(action: {
-                    clipboardManager.toggleStar(for: item)
+                    if !item.isStarred && !clipboardManager.canAddStarredItem() {
+                        onStarLimitReached()
+                    } else {
+                        clipboardManager.toggleStar(for: item)
+                    }
                 }) {
                     Image(systemName: item.isStarred ? "star.fill" : "star")
                         .foregroundColor(item.isStarred ? .yellow : .gray)
