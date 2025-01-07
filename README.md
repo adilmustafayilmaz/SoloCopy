@@ -66,7 +66,6 @@ If you encounter any issues or have suggestions, please open an issue on GitHub.
 
 ## License
 
-MIT License - feel free to use and modify as you like!
+MIT License
 
 ---
-*Note: Please replace the screenshot placeholders (screenshots/menubar.png, screenshots/main.png, screenshots/settings.png) with actual screenshots of your application.* 
