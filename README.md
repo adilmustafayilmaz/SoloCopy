@@ -2,7 +2,6 @@
 
 SoloCopy is a lightweight clipboard manager for macOS that lives in your menu bar. It helps you keep track of your clipboard history and quickly access previously copied items.
 
-![Menu Bar Screenshot](screenshots/menubar.png)
 
 ## Features
 
